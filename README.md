@@ -5,10 +5,7 @@ Baixa as submissões do usuário no site [URI Online Judge](https://github.com/p
 **Apenas a primeira resposta aceita para cada problema é baixada.**
 
 ## Dependências
-* [Python 3](https://www.python.org/)
-* [PIP](https://www.python.org/)
-* [MechanicalSoup](https://pypi.org/project/MechanicalSoup/)
-    * Pode ser instalado através do comando "pip install MechanicalSoup".
+* Podem ser instaladas pelo [pip](https://www.python.org/) utilizando o comando: "pip install -r requirements.txt".
 
 ## Como utilizar
 1. Baixe o  repositório e entre no diretório.
