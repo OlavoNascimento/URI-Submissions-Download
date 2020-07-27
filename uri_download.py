@@ -11,6 +11,7 @@ import getpass
 
 import mechanicalsoup
 
+
 class URISubmissionDownload():
     """Allows that users submissions on URI-Online-Judge be downloaded automatically."""
 
@@ -33,24 +34,24 @@ class URISubmissionDownload():
         """
 
         extension = {
-            "C++17": "cpp",
-            "C++": "cpp",
-            "C99": "c",
-            "C": "c",
-            "Python2": "py",
-            "Python3": "py",
-            "Go": "go",
-            "PostgreSQL": "sql",
-            "C#": "cs",
-            "Haskell": "hs",
-            "Java": "java",
-            "JavaScript": "js",
-            "Kotlin": "kt",
-            "Lua": "lua",
-            "OCaml": "ml",
-            "Pascal": "pas",
-            "Ruby": "rb",
-            "Scala": "scala",
+            "c++17": "cpp",
+            "c++": "cpp",
+            "c99": "c",
+            "c": "c",
+            "python2": "py",
+            "python3": "py",
+            "go": "go",
+            "postgresql": "sql",
+            "c#": "cs",
+            "haskell": "hs",
+            "java": "java",
+            "javascript": "js",
+            "kotlin": "kt",
+            "lua": "lua",
+            "ocaml": "ml",
+            "pascal": "pas",
+            "ruby": "rb",
+            "scala": "scala",
         }
         return extension.get(language, "txt")
 
@@ -106,27 +107,33 @@ class URISubmissionDownload():
 
         page = 1
         is_last_page = False
+        base_url = "https://www.urionlinejudge.com.br"
         while not is_last_page:
             print(f"Extracting submissions from page: {page}...")
-            self.browser.open(f"https://www.urionlinejudge.com.br/judge/pt/runs?page={page}")
+            self.browser.open(
+                f"{base_url}/judge/pt/runs?page={page}")
 
             # Add all submissions on current page
             page_submissions = []
             for row_class in ["par", "impar"]:
                 page_submissions += self.browser.get_current_page().find_all("tr", class_=row_class)
 
-            base_link = "https://www.urionlinejudge.com.br"
             # Extract data from each submission
             for sub in page_submissions:
                 if sub is not None and sub.text.strip() != "":
                     submission_info = sub.find_all("td")
-                    status = submission_info[4].text.strip()
-                    if status == "Accepted":
+                    status = submission_info[4].text.strip().lower()
+                    if status == "accepted":
                         problem_number = submission_info[2].text.strip()
-                        submission_link = submission_info[0].find("a").get("href")
+                        language = submission_info[5].text.strip().replace(
+                            " ", "").lower()
+                        submission_url = submission_info[0].find(
+                            "a").get("href")
+                        problem_url = submission_info[2].find("a").get("href")
                         self.submissions[problem_number] = {
-                            "link": base_link + submission_link,
-                            "language": submission_info[5].text.strip(),
+                            "language": language,
+                            "problem_url": base_url + problem_url,
+                            "submission_url": base_url + submission_url
                         }
             page += 1
 
@@ -135,6 +142,24 @@ class URISubmissionDownload():
             is_last_page = "disabled" in next_page_button.get("class")
 
             time.sleep(5)
+
+    def extract_problem_category(self, url):
+        self.browser.open(url)
+        html = self.browser.get_current_page()
+        if 'a url solicitada não foi encontrada neste servidor' in html.text.lower():
+            return ''
+        # Extracts the category of the question
+        category = html.find(
+            "div", class_="tour-step-problem-menu").find('ul').find('li')
+        category = category.text.strip().title()
+        return category
+
+    def extract_submission_code(self, url):
+        self.browser.open(url)
+        # Extracts the code of the submission
+        html = self.browser.get_current_page()
+        code = html.find("pre").text
+        return code
 
     def download_submissions(self):
         """Extract the code from submissions from the URI website and save them to files."""
@@ -145,17 +170,22 @@ class URISubmissionDownload():
         self.extract_submissions()
 
         download_dir = "URI-Submissions"
-        os.makedirs(download_dir, exist_ok=True)
         for problem_number, info in self.submissions.items():
             print(f"Downloading problem {problem_number}...")
-            self.browser.open(info["link"])
 
-            # Extracts the code of the submission from the page
-            code = self.browser.get_current_page().find("pre").text
+            # Extracts the category of the problem
+            category = self.extract_problem_category(info['problem_url'])
+            category_dir = os.path.join(download_dir, category)
+            # Create the category directory if needed
+            os.makedirs(category_dir, exist_ok=True)
 
+            # Extracts the code that was submitted
+            code = self.extract_submission_code(info["submission_url"])
+
+            # Set the file extension
             extension = self.get_file_extension(info["language"])
-
-            file_path = os.path.join(download_dir, f"{problem_number}.{extension}")
+            file_path = os.path.join(
+                category_dir, f"{problem_number}.{extension}")
             with open(file_path, "w") as code_file:
                 code_file.writelines(code)
 
@@ -169,6 +199,7 @@ def main():
     uri_download.uri_login()
     uri_download.download_submissions()
     uri_download.uri_logout()
+
 
 if __name__ == "__main__":
     main()
